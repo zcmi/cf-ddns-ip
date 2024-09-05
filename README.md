@@ -1,0 +1,2 @@
+# cf-ddns-ip
+自用windows利用CloudflareSpeedTest查询ip并且自动DDNS到cloudflare
