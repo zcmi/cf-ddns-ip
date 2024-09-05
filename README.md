@@ -6,3 +6,5 @@
 感谢项目：  
 https://github.com/XIU2/CloudflareSpeedTest  
 https://github.com/lee1080/CloudflareSpeedTestDDNS
+  参考：  
+  https://github.com/XIU2/CloudflareSpeedTest/issues/40
