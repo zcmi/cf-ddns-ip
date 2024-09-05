@@ -12,6 +12,9 @@ set "domain_name=baidu.com"  :: 替换为实际的域名
 set "cf_ts_ip=cf-ts-ip.txt"
 set "cf_ddns_ip=cf-ddns-nowip.txt"
 
+:: 运行CloudflareST程序优选ip，并且输出到cf-ts-ip.txt
+echo.|CloudflareST.exe -o "%cf_ts_ip%"
+
 :: 初始化计数变量
 set n=0
 
