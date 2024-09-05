@@ -1,0 +1,95 @@
+@echo off
+chcp 65001 >nul
+setlocal enabledelayedexpansion
+
+:: 设置 Cloudflare API Token 和 Zone ID
+set "auth_token=cloudflare的API Token" :: 替换为cloudflare的API Token
+set "zone_id=cloudflare的zone_id"  :: 替换为cloudflare的zone_id
+set "dns_record_id=cloudflare的record_id"  :: 替换为实际的记录 ID
+set "domain_name=baidu.com"  :: 替换为实际的域名
+
+:: 设置文件名变量
+set "cf_ts_ip=cf-ts-ip.txt"
+set "cf_ddns_ip=cf-ddns-nowip.txt"
+
+:: 初始化计数变量
+set n=0
+
+:: 输出调试信息
+echo 调试：开始读取 %cf_ts_ip% 文件...
+
+:: 读取 %cf_ts_ip% 文件中的 IP 地址，并存储到 bestip（查找第二行）
+for /f "tokens=1 delims=," %%i in (%cf_ts_ip%) do (
+    set /a n+=1
+    echo 调试：当前读取第 !n! 行，IP 为 %%i
+    if !n!==2 (
+        set "bestip=%%i"
+        echo 调试：找到第二行的 IP 地址: !bestip!
+        goto :END
+    )
+)
+
+:END
+echo 调试：循环结束，bestip 为 %bestip%
+
+:: 检查 bestip 是否为空
+if "%bestip%"=="" (
+    echo.
+    echo 没有从 %cf_ts_ip% 中获取到第二行的 IP 地址，跳过下面步骤...
+    goto :STOP
+)
+
+:: 读取 %cf_ddns_ip% 文件中的 IP 地址（假设存在的话）
+if exist %cf_ddns_ip% (
+    set /p nowip=<%cf_ddns_ip%
+)
+
+:: 输出调试信息
+echo 调试：bestip=%bestip%, nowip=%nowip%
+
+:: 检查新 IP 是否与旧 IP 相同
+if "%bestip%"=="%nowip%" (
+    echo.
+    echo 新 IP 与旧 IP 相同，跳过下面步骤...
+    goto :STOP
+)
+
+:: 将 IP 写入到 %cf_ddns_ip%
+echo 调试：将 IP %bestip% 写入到 %cf_ddns_ip% 文件...
+echo %bestip% > %cf_ddns_ip%
+
+:: 检查写入结果
+if exist %cf_ddns_ip% (
+    echo 调试：成功写入 %cf_ddns_ip% 文件
+) else (
+    echo 调试：写入 %cf_ddns_ip% 文件失败
+)
+
+echo.
+echo 旧 IP 为 %nowip%
+echo 新 IP 为 %bestip%
+
+:: 从 %cf_ddns_ip% 文件中读取 IP 地址，并将其赋给 ip 变量
+for /f "delims=" %%i in (%cf_ddns_ip%) do set "ip=%%i"
+
+:: 检查是否成功读取 IP 地址
+if not defined ip (
+    echo 无法读取 %cf_ddns_ip% 文件中的 IP 地址。
+    pause
+    exit /b
+)
+
+:: 输出从文件中读取的 IP 地址（可选）
+echo 从 %cf_ddns_ip% 文件中读取的 IP 地址是: %ip%
+
+:: 执行 curl 命令
+curl -X PUT "https://api.cloudflare.com/client/v4/zones/%zone_id%/dns_records/%dns_record_id%" ^
+     -H "Authorization: Bearer %auth_token%" ^
+     -H "Content-Type: application/json" ^
+     --data "{\"type\":\"A\",\"name\":\"%domain_name%\",\"content\":\"%ip%\",\"ttl\":1,\"proxied\":false}"
+
+:: 暂停以查看输出
+pause
+
+:: 结束脚本
+endlocal
