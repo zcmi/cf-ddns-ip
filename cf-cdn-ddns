@@ -2,97 +2,108 @@
 chcp 65001 >nul
 setlocal enabledelayedexpansion
 
-:: 设置 Cloudflare API Token 和 Zone ID
-set "auth_token=cloudflare的API Token" :: 替换为cloudflare的API Token
-set "zone_id=cloudflare的zone_id"  :: 替换为cloudflare的zone_id
-set "dns_record_id=cloudflare的record_id"  :: 替换为实际的记录 ID
-set "domain_name=baidu.com"  :: 替换为实际的域名
+:: 设置cloudflare域名变量
+set "auth_token="
+set "zone_id="
+set "dns_record_id="
+set "domain_name="
 
-:: 设置文件名变量
-set "cf_ts_ip=cf-ts-ip.txt"
-set "cf_ddns_ip=cf-ddns-nowip.txt"
+:: 第一部分：nowip文件处理
+:: 检查是否存在 nowip.txt 文件，如果不存在则创建空文件
+if not exist nowip.txt (
+    echo nowip.txt 文件不存在，创建一个空白文件...
+    echo. > nowip.txt
+) else (
+    :: 如果 nowip.txt 存在则读取 nowip.txt 文件中的 IP 地址并存入变量 nowip
+    set "nowip="
+    for /f "delims=" %%i in (nowip.txt) do set "nowip=%%i"
 
-:: 运行CloudflareST程序优选ip，并且输出到cf-ts-ip.txt
-echo.|CloudflareST.exe -o "%cf_ts_ip%"
+    :: 将提取nowip.txt里面的内容写入ip_2.txt
+    echo !nowip! > ip_2.txt
+)
 
+:: 第二部分：生成对比的优选ip
+:: 运行CloudflareST程序优选ip，并且输出到cf_test_result.txt
+echo 运行CloudflareST程序优选ip
+echo.|CloudflareST.exe -tll 40 -tl 200 -o "cf_test_result.txt"
+
+:: 判断结果文件是否存在，如果不存在说明结果为 0
+if not exist cf_test_result.txt (
+    echo.
+    echo CloudflareST 测速结果 IP 数量为 0，跳过下面步骤...
+    goto :STOP
+)
+
+:: 获取第一行的最快 IP
 :: 初始化计数变量
 set n=0
-
-:: 输出调试信息
-echo 调试：开始读取 %cf_ts_ip% 文件...
-
-:: 读取 %cf_ts_ip% 文件中的 IP 地址，并存储到 bestip（查找第二行）
-for /f "tokens=1 delims=," %%i in (%cf_ts_ip%) do (
+for /f "tokens=1 delims=," %%i in (cf_test_result.txt) do (
     set /a n+=1
-    echo 调试：当前读取第 !n! 行，IP 为 %%i
     if !n!==2 (
-        set "bestip=%%i"
-        echo 调试：找到第二行的 IP 地址: !bestip!
+        set "testip=%%i"
         goto :END
     )
 )
-
 :END
-echo 调试：循环结束，bestip 为 %bestip%
 
-:: 检查 bestip 是否为空
-if "%bestip%"=="" (
+echo 原 IP 为 %nowip%
+echo 测试 IP 为 %testip%
+
+:: 第三部分：比较新旧两个ip
+:: 判断刚刚获取的最快 IP 是否为空，以及是否和旧 IP 一样
+if "%testip%"=="" (
     echo.
-    echo 没有从 %cf_ts_ip% 中获取到第二行的 IP 地址，跳过下面步骤...
+    echo CloudflareST 测速结果 IP 数量为 0，跳过下面步骤...
+    goto :STOP
+)
+:: 判断刚刚获取的最快 IP 是否和旧 IP 一样
+if "%testip%"=="%nowip%" (
+    echo.
+    echo CloudflareST 测速结果 IP 数量为 0，跳过下面步骤...
     goto :STOP
 )
 
-:: 读取 %cf_ddns_ip% 文件中的 IP 地址（假设存在的话）
-if exist %cf_ddns_ip% (
-    set /p nowip=<%cf_ddns_ip%
-)
-
-:: 输出调试信息
-echo 调试：bestip=%bestip%, nowip=%nowip%
-
-:: 检查新 IP 是否与旧 IP 相同
-if "%bestip%"=="%nowip%" (
-    echo.
-    echo 新 IP 与旧 IP 相同，跳过下面步骤...
-    goto :STOP
-)
-
-:: 将 IP 写入到 %cf_ddns_ip%
-echo 调试：将 IP %bestip% 写入到 %cf_ddns_ip% 文件...
-echo %bestip% > %cf_ddns_ip%
-
-:: 检查写入结果
-if exist %cf_ddns_ip% (
-    echo 调试：成功写入 %cf_ddns_ip% 文件
-) else (
-    echo 调试：写入 %cf_ddns_ip% 文件失败
-)
-
+:: 将得到的测试的ip写入ip_2.txt
+echo %testip% >> ip_2.txt
 echo.
-echo 旧 IP 为 %nowip%
-echo 新 IP 为 %bestip%
 
-:: 从 %cf_ddns_ip% 文件中读取 IP 地址，并将其赋给 ip 变量
-for /f "delims=" %%i in (%cf_ddns_ip%) do set "ip=%%i"
+:: 运行 CloudflareST 程序，输出到 ip_2.txt 文件
+echo 运行 CloudflareST 程序，比较新旧ip的速度
+echo.|CloudflareST.exe -f ip_2.txt -o ip_2.txt
 
-:: 检查是否成功读取 IP 地址
+:: 读取文件并获取第二行的 IP 地址
+:: 重新初始化计数变量
+set n=0
+for /f "skip=1 tokens=1 delims=," %%i in (ip_2.txt) do (
+    set /a n+=1
+    if !n!==1 (
+        set "ip=%%i"
+        echo 得到的ip是: %%i
+        goto :END2
+    )
+)
+
+:END2
+:: 确保 ip 变量被正确设置
 if not defined ip (
-    echo 无法读取 %cf_ddns_ip% 文件中的 IP 地址。
+    echo 未找到ip
     pause
     exit /b
 )
 
-:: 输出从文件中读取的 IP 地址（可选）
-echo 从 %cf_ddns_ip% 文件中读取的 IP 地址是: %ip%
+:: 新ip写入nowip.txt
+echo %ip% > nowip.txt
 
-:: 执行 curl 命令
+
+:: 执行 curl 命令上传ip解析
+echo Executing curl command...
 curl -X PUT "https://api.cloudflare.com/client/v4/zones/%zone_id%/dns_records/%dns_record_id%" ^
      -H "Authorization: Bearer %auth_token%" ^
      -H "Content-Type: application/json" ^
      --data "{\"type\":\"A\",\"name\":\"%domain_name%\",\"content\":\"%ip%\",\"ttl\":1,\"proxied\":false}"
 
-:: 暂停以查看输出
+:: 结束延迟扩展
+endlocal
 pause
 
-:: 结束脚本
-endlocal
+:STOP
