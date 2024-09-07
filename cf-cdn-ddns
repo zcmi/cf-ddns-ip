@@ -8,6 +8,12 @@ set "zone_id="
 set "dns_record_id="
 set "domain_name="
 
+:: 设置CloudflareST测试参数
+set "url=https://cfts.240826.xyz/200mb.test"
+set "sl=50"
+set "tll=40"
+set "tl=200"
+
 :: 第一部分：nowip文件处理
 :: 检查是否存在 nowip.txt 文件，如果不存在则创建空文件
 if not exist nowip.txt (
@@ -25,7 +31,7 @@ if not exist nowip.txt (
 :: 第二部分：生成对比的优选ip
 :: 运行CloudflareST程序优选ip，并且输出到cf_test_result.txt
 echo 运行CloudflareST程序优选ip
-echo.|CloudflareST.exe -tll 40 -tl 200 -o "cf_test_result.txt"
+echo.|CloudflareST.exe -url %url% -sl %sl% -tll %tll% -tl %tl% -o "cf_test_result.txt"
 
 :: 判断结果文件是否存在，如果不存在说明结果为 0
 if not exist cf_test_result.txt (
