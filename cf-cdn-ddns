@@ -9,7 +9,7 @@ set "dns_record_id="
 set "domain_name="
 
 :: 设置CloudflareST测试参数
-set "url=https://cfts.240826.xyz/200mb.test"
+set "url="
 set "sl=50"
 set "tll=40"
 set "tl=200"
