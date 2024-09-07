@@ -9,7 +9,7 @@ set "dns_record_id="
 set "domain_name="
 
 :: 设置CloudflareST测试参数
-set "url="
+set "url=https://cfts.amizcmi.us.kg/ts"
 set "sl=50"
 set "tll=40"
 set "tl=200"
